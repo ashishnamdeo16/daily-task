@@ -8,6 +8,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Line,
   LineChart,
   Pie,
@@ -108,10 +109,8 @@ export function AnalyticsCharts({ data }: { data: AnalyticsData }) {
               cx="50%"
               cy="50%"
               outerRadius={90}
-              label
-              labelLine={false}
-              fontSize={10}
             >
+              <LabelList dataKey="label" position="outside" fontSize={10} />
               {data.categoryPerformance.map((_, i) => (
                 <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
               ))}
