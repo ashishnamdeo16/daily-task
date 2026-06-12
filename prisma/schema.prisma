@@ -1,0 +1,573 @@
+// LifeOS — Personal Execution System
+// Complete data model. See README for entity relationships.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+  RESCHEDULED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Category {
+  JOB_APPLICATION
+  DSA
+  OPEN_SOURCE
+  AI_PROJECT
+  NETWORKING
+  FITNESS
+  LEARNING
+  CONTENT
+  OTHER
+}
+
+enum TemplateType {
+  WORK_DAY
+  WEEKEND
+  CUSTOM
+}
+
+enum FocusType {
+  POMODORO
+  CUSTOM
+  DEEP_WORK
+}
+
+enum FocusStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ABANDONED
+}
+
+enum NotificationType {
+  REMINDER
+  ALARM
+  ACHIEVEMENT
+  STREAK
+  DEBT
+  WEEKLY_PLANNING
+  END_OF_DAY
+  SYSTEM
+}
+
+enum AchievementCategory {
+  STREAK
+  JOB_SEARCH
+  DSA
+  OPEN_SOURCE
+  AI_BUILDER
+  FOCUS
+  XP
+  GENERAL
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum ApplicationStage {
+  APPLIED
+  REFERRAL_REQUESTED
+  ONLINE_ASSESSMENT
+  INTERVIEW
+  REJECTED
+  OFFER
+  ACCEPTED
+  WITHDRAWN
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+// ============================================================================
+// CORE: USER
+// ============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  name      String?
+  imageUrl  String?
+  timezone  String   @default("UTC")
+
+  // Gamification
+  xp           Int @default(0)
+  level        Int @default(1)
+  currentStreak Int @default(0)
+  longestStreak Int @default(0)
+  lastActiveDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  days                Day[]
+  tasks               Task[]
+  templates           TaskTemplate[]
+  focusSessions       FocusSession[]
+  dailyReviews        DailyReview[]
+  weeklyGoals         WeeklyGoal[]
+  goals               Goal[]
+  achievements        Achievement[]
+  xpLogs              XPLog[]
+  activityLogs        ActivityLog[]
+  notifications       Notification[]
+  debtRecords         DebtRecord[]
+  applications        ApplicationTracker[]
+  openSourceItems     OpenSourceTracker[]
+  settings            Settings?
+
+  @@index([clerkId])
+  @@index([email])
+}
+
+// ============================================================================
+// DAY — one record auto-generated per calendar day
+// ============================================================================
+
+model Day {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date      DateTime @db.Date
+
+  // Computed metrics (denormalized for fast dashboard reads)
+  score             Int     @default(0) // 0-100 daily completion score
+  totalTasks        Int     @default(0)
+  completedTasks    Int     @default(0)
+  skippedTasks      Int     @default(0)
+  xpEarned          Int     @default(0)
+  focusMinutes      Int     @default(0)
+
+  isClosed          Boolean @default(false) // end-of-day review completed
+  streakMaintained  Boolean @default(false)
+
+  templateId  String?
+  template    TaskTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks         Task[]
+  focusSessions FocusSession[]
+  review        DailyReview?
+  debtRecords   DebtRecord[]
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// ============================================================================
+// TASK
+// ============================================================================
+
+model Task {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayId     String
+  day       Day      @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  category    Category   @default(OTHER)
+  priority    Priority   @default(MEDIUM)
+  status      TaskStatus @default(TODO)
+
+  // Ordering within Kanban column
+  position    Int        @default(0)
+
+  // Quantitative goals (used by debt system) e.g. "20 job applications"
+  targetCount    Int?     // goal quantity for the day
+  completedCount Int      @default(0) // how many actually done
+  unit           String?  // "applications", "problems", "PRs"
+
+  // Debt: how much of this task is carried-over debt
+  debtCount      Int      @default(0)
+
+  xpValue     Int      @default(10)
+  estimatedMinutes Int?
+
+  completedAt DateTime?
+
+  weeklyGoalId String?
+  weeklyGoal   WeeklyGoal? @relation(fields: [weeklyGoalId], references: [id], onDelete: SetNull)
+
+  goalId       String?
+  goal         Goal?       @relation(fields: [goalId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  focusSessions FocusSession[]
+  debtRecords   DebtRecord[]
+
+  @@index([userId, status])
+  @@index([dayId, status])
+  @@index([category])
+}
+
+// ============================================================================
+// TASK TEMPLATE
+// ============================================================================
+
+model TaskTemplate {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  type        TemplateType @default(CUSTOM)
+  icon        String?      // lucide icon name
+  isDefault   Boolean      @default(false)
+
+  // Days of week this template applies to (0=Sun ... 6=Sat). Empty = manual.
+  daysOfWeek  Int[]        @default([])
+
+  items       Json         // TemplateItem[] — see lib/types
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  days        Day[]
+
+  @@index([userId])
+}
+
+// ============================================================================
+// FOCUS SESSION
+// ============================================================================
+
+model FocusSession {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  taskId    String?
+  task      Task?       @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  dayId     String?
+  day       Day?        @relation(fields: [dayId], references: [id], onDelete: SetNull)
+
+  type            FocusType   @default(POMODORO)
+  status          FocusStatus @default(ACTIVE)
+  label           String?
+
+  plannedMinutes  Int
+  actualMinutes   Int?
+
+  startedAt       DateTime    @default(now())
+  endedAt         DateTime?
+  expectedEndAt   DateTime
+
+  // Mandatory alarm bookkeeping
+  alarmTriggered  Boolean     @default(false)
+  alarmDismissed  Boolean     @default(false)
+  snoozeCount     Int         @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([taskId])
+}
+
+// ============================================================================
+// DAILY REVIEW (end of day)
+// ============================================================================
+
+model DailyReview {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayId     String   @unique
+  day       Day      @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  notes     String?
+  wins      String?
+  failures  String?
+  lessons   String?
+  mood      Int?     // 1-5
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ============================================================================
+// WEEKLY GOALS (top 3 per week)
+// ============================================================================
+
+model WeeklyGoal {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  category    Category   @default(OTHER)
+  weekStart   DateTime   @db.Date // Sunday of the week
+  targetValue Int        @default(1)
+  currentValue Int       @default(0)
+  status      GoalStatus @default(ACTIVE)
+  rank        Int        @default(1) // 1, 2, 3
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks     Task[]
+
+  @@index([userId, weekStart])
+}
+
+// ============================================================================
+// GOALS (long-term, e.g. "Reach 250 LeetCode")
+// ============================================================================
+
+model Goal {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  category    Category   @default(OTHER)
+  targetValue Int
+  currentValue Int       @default(0)
+  unit        String?
+  deadline    DateTime?
+  status      GoalStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks     Task[]
+
+  @@index([userId, status])
+}
+
+// ============================================================================
+// ACHIEVEMENT
+// ============================================================================
+
+model Achievement {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  key         String              // stable identifier e.g. "streak_7"
+  name        String
+  description String
+  icon        String?
+  category    AchievementCategory @default(GENERAL)
+  xpReward    Int                 @default(0)
+
+  unlockedAt  DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([userId])
+}
+
+// ============================================================================
+// XP LOG
+// ============================================================================
+
+model XPLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount    Int
+  reason    String
+  source    String   // "task", "achievement", "streak", "focus"
+  refId     String?  // related entity id
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ============================================================================
+// ACTIVITY LOG (audit trail / feed)
+// ============================================================================
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  action    String   // "task.completed", "focus.started", etc.
+  entity    String    // "task", "day", "focus"
+  entityId  String?
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ============================================================================
+// NOTIFICATION
+// ============================================================================
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      NotificationType
+  title     String
+  body      String?
+  link      String?
+  read      Boolean          @default(false)
+  scheduledFor DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
+
+// ============================================================================
+// DEBT RECORD — carried-over uncompleted work
+// ============================================================================
+
+model DebtRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The day this debt is owed ON (the day it was carried into)
+  dayId     String?
+  day       Day?     @relation(fields: [dayId], references: [id], onDelete: SetNull)
+
+  // The task that generated/carries the debt
+  taskId    String?
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  category    Category @default(OTHER)
+  title       String
+  amount      Int      // outstanding debt count
+  originalDate DateTime @db.Date // the day the debt originated
+  resolved    Boolean  @default(false)
+  resolvedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, resolved])
+}
+
+// ============================================================================
+// JOB SEARCH — ApplicationTracker
+// ============================================================================
+
+model ApplicationTracker {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  company     String
+  role        String
+  location    String?
+  link        String?
+  source      String?  // LinkedIn, referral, etc.
+  stage       ApplicationStage @default(APPLIED)
+  salary      String?
+  notes       String?
+
+  appliedAt   DateTime  @default(now())
+  respondedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, stage])
+}
+
+// ============================================================================
+// OPEN SOURCE — OpenSourceTracker
+// ============================================================================
+
+model OpenSourceTracker {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  repo        String
+  title       String
+  url         String?
+  type        String   // "issue" | "pr"
+  number      Int?
+
+  issueAssigned Boolean @default(false)
+  issueClosed   Boolean @default(false)
+  prCreated     Boolean @default(false)
+  prMerged      Boolean @default(false)
+  commits       Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ============================================================================
+// SETTINGS
+// ============================================================================
+
+model Settings {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  theme              Theme   @default(SYSTEM)
+  enableNotifications Boolean @default(true)
+  enableAlarmSound   Boolean @default(true)
+  pushSubscription   Json?
+
+  // Reminders
+  endOfDayHour       Int     @default(21) // 9 PM
+  weeklyPlanningDay  Int     @default(0)  // Sunday
+  pomodoroMinutes    Int     @default(25)
+  shortBreakMinutes  Int     @default(5)
+  longBreakMinutes   Int     @default(15)
+
+  // Defaults applied when a new day is created
+  defaultTemplateId  String?
+  autoCarryDebt      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

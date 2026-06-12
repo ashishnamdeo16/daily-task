@@ -1,0 +1,22 @@
+{
+  "name": "LifeOS — Personal Execution System",
+  "short_name": "LifeOS",
+  "description": "Tasks, habits, focus sessions, streaks and accountability — your personal execution system.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#1a1a1f",
+  "theme_color": "#5b5bd6",
+  "categories": ["productivity", "lifestyle", "utilities"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Today's board", "url": "/dashboard", "description": "Open the daily dashboard" },
+    { "name": "Start focus", "url": "/focus", "description": "Start a focus session" },
+    { "name": "Streaks", "url": "/streaks", "description": "View your streaks" }
+  ]
+}
