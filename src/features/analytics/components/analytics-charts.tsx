@@ -17,8 +17,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import type { PieLabelRenderProps } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { AnalyticsData } from "@/server/services/analytics.service";
+import type { AnalyticsData, CategoryPoint } from "@/server/services/analytics.service";
 
 const PIE_COLORS = [
   "var(--chart-1)", "var(--chart-2)", "var(--chart-3)",
@@ -108,7 +109,10 @@ export function AnalyticsCharts({ data }: { data: AnalyticsData }) {
               cx="50%"
               cy="50%"
               outerRadius={90}
-              label={(e: { label?: string }) => e.label}
+              label={(props: PieLabelRenderProps) => {
+                const point = props.payload as CategoryPoint | undefined;
+                return point?.label ?? "";
+              }}
               labelLine={false}
               fontSize={10}
             >
