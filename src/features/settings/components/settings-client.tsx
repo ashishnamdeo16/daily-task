@@ -5,7 +5,7 @@ import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { Bell } from "lucide-react";
 import type { Settings } from "@prisma/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { updateSettings } from "@/server/actions/settings.actions";
 import { usePushNotifications } from "@/features/notifications/use-push";
+import { ResetAccountButton } from "@/features/settings/components/reset-account-button";
 
 function Row({ children }: { children: React.ReactNode }) {
   return <div className="flex items-center justify-between gap-4 py-3">{children}</div>;
@@ -43,6 +44,18 @@ export function SettingsClient({ settings }: { settings: Settings | null }) {
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">Tune LifeOS to your workflow.</p>
       </div>
+
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-base text-destructive">Danger zone</CardTitle>
+          <CardDescription>
+            Reset all progress and start from scratch. Settings like theme and pomodoro length are kept.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResetAccountButton variant="settings" />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Appearance</CardTitle></CardHeader>

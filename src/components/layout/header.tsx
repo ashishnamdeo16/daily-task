@@ -10,6 +10,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { SidebarNav } from "./sidebar";
 import { Progress } from "@/components/ui/progress";
 import { getLevelProgress } from "@/lib/xp";
+import { ResetAccountButton } from "@/features/settings/components/reset-account-button";
 
 interface HeaderProps {
   streak: number;
@@ -69,6 +70,7 @@ export function Header({ streak, xp, debt }: HeaderProps) {
         </div>
 
         <ThemeToggle />
+        <ResetAccountButton />
         <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
       </div>
 

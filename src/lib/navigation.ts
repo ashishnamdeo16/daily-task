@@ -11,6 +11,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Streaks", href: "/streaks", icon: "Flame", group: "core" },
   { label: "Analytics", href: "/analytics", icon: "BarChart3", group: "core" },
   { label: "Weekly", href: "/weekly", icon: "Target", group: "core" },
+  { label: "Events", href: "/events", icon: "Calendar", group: "core" },
   { label: "Templates", href: "/templates", icon: "LayoutTemplate", group: "core" },
   { label: "Achievements", href: "/achievements", icon: "Trophy", group: "core" },
 

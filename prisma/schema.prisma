@@ -142,6 +142,7 @@ model User {
   debtRecords         DebtRecord[]
   applications        ApplicationTracker[]
   openSourceItems     OpenSourceTracker[]
+  upcomingEvents      UpcomingEvent[]
   settings            Settings?
 
   @@index([clerkId])
@@ -541,6 +542,27 @@ model OpenSourceTracker {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+// ============================================================================
+// UPCOMING EVENTS
+// ============================================================================
+
+model UpcomingEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title     String
+  link      String?
+  notes     String?
+  eventAt   DateTime // UTC instant; entered/displayed in America/Los_Angeles (PST/PDT)
+  allDay    Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, eventAt])
 }
 
 // ============================================================================

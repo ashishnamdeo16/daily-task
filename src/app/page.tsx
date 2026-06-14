@@ -14,6 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { APP_NAME } from "@/lib/constants";
 
+export const dynamic = "force-dynamic";
+
 const FEATURES = [
   { icon: CalendarCheck, title: "Daily Kanban", desc: "Auto-generated days with Todo, In Progress, Completed & Skipped columns." },
   { icon: Flame, title: "Streak Engine", desc: "LeetCode-style streaks with a GitHub heatmap that keeps you honest." },

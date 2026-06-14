@@ -70,11 +70,16 @@ const WEEKEND_ITEMS: TemplateItem[] = [
 
 /**
  * Provision default Work Day and Weekend templates for a new user.
- * Idempotent — skips if the user already has templates.
+ * Idempotent — skips if the user already has templates (unless force=true).
  */
-export async function bootstrapDefaultTemplates(userId: string): Promise<void> {
-  const count = await prisma.taskTemplate.count({ where: { userId } });
-  if (count > 0) return;
+export async function bootstrapDefaultTemplates(
+  userId: string,
+  options?: { force?: boolean }
+): Promise<void> {
+  if (!options?.force) {
+    const count = await prisma.taskTemplate.count({ where: { userId } });
+    if (count > 0) return;
+  }
 
   const workDay = await prisma.taskTemplate.create({
     data: {
